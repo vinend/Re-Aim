@@ -1,0 +1,29 @@
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+eclipse.project.name = appName + '-core'
+
+dependencies {
+  api "com.badlogicgames.ashley:ashley:$ashleyVersion"
+  api "com.badlogicgames.box2dlights:box2dlights:$box2dlightsVersion"
+  api "com.badlogicgames.gdx-controllers:gdx-controllers-core:$gdxControllersVersion"
+  api "com.badlogicgames.gdx:gdx-ai:$aiVersion"
+  api "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx-bullet:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx-freetype:$gdxVersion"
+  api "com.badlogicgames.gdx:gdx:$gdxVersion"
+  api "com.crashinvaders.basisu:basisu-gdx:$gdxBasisUniversalVersion"
+  api "com.crashinvaders.basisu:basisu-wrapper:$gdxBasisUniversalVersion"
+  api "com.crashinvaders.lml:gdx-autumn-mvc:$lmlVersion"
+  api "com.crashinvaders.lml:gdx-autumn:$lmlVersion"
+  api "com.crashinvaders.lml:gdx-kiwi:$lmlVersion"
+  api "com.crashinvaders.lml:gdx-lml:$lmlVersion"
+  api "com.github.tommyettinger:colorful:$colorfulVersion"
+  api "de.golfgl.gdxcontrollerutils:gdx-controllers-advanced:$controllerUtilsVersion"
+  api "de.golfgl.gdxcontrollerutils:gdx-controllerutils-mapping:$controllerMappingVersion"
+  api "de.golfgl.gdxcontrollerutils:gdx-controllerutils-scene2d:$controllerScene2DVersion"
+  api "net.onedaybeard.artemis:artemis-odb:$artemisOdbVersion"
+  api "org.apache.commons:commons-collections4:$commonsCollectionsVersion"
+
+  if(enableGraalNative == 'true') {
+    implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
+  }
+}
