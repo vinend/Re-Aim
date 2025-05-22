@@ -1,5 +1,6 @@
 package io.github.some_example_name.models;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -9,31 +10,38 @@ import io.github.some_example_name.assets.GameAssets;
 /**
  * Represents a target in the game
  */
-public class Target {    
+public class Target {
+    private static final float TARGET_SCALE = 0.3f; // Scale factor for the target
     
     private float x, y;
-    private Texture texture;
+    private float velocityY;
+    private Texture texture; // Keep for non-animated state if needed, or remove if always animated
     private Rectangle bounds;
     private int scoreValue;
     private GameAssets assets;
-    // Destruction animation state
     private boolean isDestroyed = false;
-      /**
+
+    /**
      * Creates a new target
      * @param x X position
      * @param y Y position
      * @param type Target type (1-4) - determines score value
+     * @param velocityY Vertical speed of the target
      */
-    public Target(float x, float y, String type) {
+    public Target(float x, float y, String type, float velocityY) {
         this.x = x;
         this.y = y;
+        this.velocityY = velocityY;
         this.assets = GameAssets.getInstance();
         
         // Set target texture based on type (always use target1 initially)
-        this.texture = assets.getTargetTexture("target1");
+        // TODO: Make target texture dynamic based on 'type' if different target visuals are needed
+        this.texture = assets.getTargetTexture("target1"); // Default texture
         
-        // Create bounds for hit detection
-        this.bounds = new Rectangle(x, y, texture.getWidth(), texture.getHeight());
+        // Create bounds for hit detection, using scaled dimensions
+        float scaledWidth = this.texture.getWidth() * TARGET_SCALE;
+        float scaledHeight = this.texture.getHeight() * TARGET_SCALE;
+        this.bounds = new Rectangle(x, y, scaledWidth, scaledHeight);
         
         // Set score value based on target type
         switch(type) {
@@ -53,16 +61,30 @@ public class Target {
                 scoreValue = 100;
         }
     }
-      /**
+
+    /**
      * Updates the target state
      * @param deltaTime Time since last frame
      * @return True if the target should be removed from the game
      */
     public boolean update(float deltaTime) {
-        if (isDestroyed && assets.isTargetAnimationFinished()) {
-            return true; // Target animation finished, can be removed
+        if (isDestroyed) {
+            // If destroyed, only update animation state
+            return assets.isTargetAnimationFinished(); // Target animation finished, can be removed
+        } else {
+            // If not destroyed, move the target upwards
+            y += velocityY * deltaTime;
+            bounds.setPosition(x, y); // Bounds are already scaled, just update position
+
+            // Gdx.app.debug("Target", "Target y: " + y + ", velocityY: " + velocityY + ", deltaTime: " + deltaTime);
+
+
+            // Check if target is off-screen (top)
+            if (y > Gdx.graphics.getHeight()) {
+                return true; // Mark for removal
+            }
+            return false; // Not ready for removal yet
         }
-        return false;
     }
     
     /**
@@ -70,14 +92,27 @@ public class Target {
      * @param batch SpriteBatch to draw with
      */
     public void render(SpriteBatch batch) {
+        TextureRegion currentFrameToDraw;
+        float frameWidth, frameHeight;
+
         if (isDestroyed) {
-            // Draw the current animation frame
-            TextureRegion currentFrame = assets.getCurrentTargetFrame();
-            batch.draw(currentFrame, x, y);
+            currentFrameToDraw = assets.getCurrentTargetFrame(); // Assumes this returns a valid frame
+            if (currentFrameToDraw == null) return; // Safety check if animation is not ready
+            frameWidth = currentFrameToDraw.getRegionWidth();
+            frameHeight = currentFrameToDraw.getRegionHeight();
         } else {
-            // Draw the normal target
-            batch.draw(texture, x, y);
+            // For non-destroyed targets, use the static texture
+            // If you want non-destroyed targets to also be animated, adjust GameAssets accordingly
+            // For now, using the static texture for simplicity before destruction.
+            currentFrameToDraw = new TextureRegion(this.texture); // Wrap static texture in TextureRegion
+            frameWidth = this.texture.getWidth();
+            frameHeight = this.texture.getHeight();
         }
+        
+        batch.draw(currentFrameToDraw, 
+                     x, y, 
+                     frameWidth * TARGET_SCALE, 
+                     frameHeight * TARGET_SCALE);
     }
     
     /**

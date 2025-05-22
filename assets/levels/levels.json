@@ -1,0 +1,11 @@
+{
+  "levels": [
+    {
+      "id": "aint_that_a_kick_in_the_head",
+      "name": "Ain't That a Kick in the Head",
+      "musicFileName": "Ain_t that a kick in the head.mp3",
+      "analysisFileName": "Ain_t that a kick in the head_analysis.json",
+      "difficulty": "easy"
+    }
+  ]
+}

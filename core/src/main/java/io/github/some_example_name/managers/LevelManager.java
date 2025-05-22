@@ -1,0 +1,234 @@
+package io.github.some_example_name.managers;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Json;
+import com.badlogic.gdx.utils.JsonReader;
+import com.badlogic.gdx.utils.JsonValue;
+import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.math.MathUtils;
+import io.github.some_example_name.models.Target;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+
+public class LevelManager {
+    private static final String LEVELS_CONFIG_PATH = "levels/levels.json";
+    private static final String MUSIC_ASSET_PATH = "MUSIC/";
+    private static final float TARGET_TRAVEL_TIME = 2.0f;
+    private static final float TARGET_START_Y = 0;
+
+    private Map<String, LevelData> levels;
+    private Json json;
+    private Music currentMusic;
+    private LevelData currentLevelData;
+    private float levelElapsedTime;
+    private int nextTargetIndex;
+    private float targetVelocityY;
+
+    public LevelManager() {
+        levels = new HashMap<>();
+        json = new Json();
+        Gdx.app.debug("LevelManager", "Attempting to load levels from: " + LEVELS_CONFIG_PATH);
+        loadLevels();
+        targetVelocityY = Gdx.graphics.getHeight() / TARGET_TRAVEL_TIME;
+        Gdx.app.debug("LevelManager", "Loaded " + levels.size() + " levels");
+    }
+
+    private void listFilesRecursively(FileHandle dir, String indent) {
+        for (FileHandle file : dir.list()) {
+            Gdx.app.debug("LevelManager", indent + "- " + file.path());
+            if (file.isDirectory()) {
+                listFilesRecursively(file, indent + "  ");
+            }
+        }
+    }
+
+    private void loadLevels() {
+        FileHandle levelsConfigFile = Gdx.files.internal(LEVELS_CONFIG_PATH);
+        String absolutePath = levelsConfigFile.file().getAbsolutePath();
+        Gdx.app.debug("LevelManager", "Attempting to load levels from absolute path: " + absolutePath);
+        
+        if (!levelsConfigFile.exists()) {
+            Gdx.app.error("LevelManager", "Levels configuration file not found: " + LEVELS_CONFIG_PATH);
+            Gdx.app.error("LevelManager", "Absolute path that failed: " + absolutePath);
+            FileHandle assetsDir = Gdx.files.internal("");
+            Gdx.app.debug("LevelManager", "Available files in assets directory:");
+            listFilesRecursively(assetsDir, "");
+            return;
+        }
+
+        try {
+            JsonValue root = new JsonReader().parse(levelsConfigFile);
+            JsonValue levelsArray = root.get("levels");
+
+            if (levelsArray != null && levelsArray.isArray()) {
+                for (JsonValue levelJson : levelsArray) {
+                    LevelConfig config = json.readValue(LevelConfig.class, levelJson);
+                    if (config != null) {
+                        Gdx.app.debug("LevelManager", "Loading level: " + config.name);
+                        
+                        String musicFullPath = MUSIC_ASSET_PATH + config.musicFileName;
+                        String analysisFullPath = config.analysisFileName != null ? MUSIC_ASSET_PATH + config.analysisFileName : null;
+
+                        Gdx.app.debug("LevelManager", "Music path: " + musicFullPath);
+                        Gdx.app.debug("LevelManager", "Analysis path: " + analysisFullPath);
+
+                        LevelAnalysis levelAnalysis = null;
+                        if (analysisFullPath != null) {
+                            FileHandle analysisFile = Gdx.files.internal(analysisFullPath);
+                            if (analysisFile.exists()) {
+                                try {
+                                    levelAnalysis = json.fromJson(LevelAnalysis.class, analysisFile);
+                                    Gdx.app.log("LevelManager", "Loaded analysis for level: " + config.name);
+                                } catch (Exception e) {
+                                    Gdx.app.error("LevelManager", "Error parsing analysis file for " + config.name + ":", e); // Print full stack trace
+                                }
+                            } else {
+                                Gdx.app.error("LevelManager", "Analysis file not found for " + config.name + ": " + analysisFullPath);
+                            }
+                        }
+
+                        LevelData levelData = new LevelData(
+                            config.id,
+                            config.name,
+                            musicFullPath,
+                            analysisFullPath,
+                            config.difficulty,
+                            levelAnalysis
+                        );
+                        levels.put(config.id, levelData);
+                        Gdx.app.log("LevelManager", "Loaded level: " + config.name + " (ID: " + config.id + ")");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Gdx.app.error("LevelManager", "Error loading levels from " + LEVELS_CONFIG_PATH + ":", e); // Print full stack trace
+        }
+    }
+
+    public void startLevel(String levelId) {
+        currentLevelData = levels.get(levelId);
+        if (currentLevelData == null) {
+            Gdx.app.error("LevelManager", "Level not found: " + levelId);
+            return;
+        }
+
+        if (currentMusic != null) {
+            currentMusic.stop();
+            currentMusic.dispose();
+        }
+        currentMusic = Gdx.audio.newMusic(Gdx.files.internal(currentLevelData.getMusicFilePath()));
+        currentMusic.play();
+        currentMusic.setVolume(0.5f);
+
+        levelElapsedTime = 0;
+        nextTargetIndex = 0;
+        Gdx.app.log("LevelManager", "Started level: " + currentLevelData.getName());
+    }
+
+    public List<Target> update(float deltaTime) {
+        List<Target> newTargets = new ArrayList<>();
+        if (currentLevelData == null || currentLevelData.getAnalysis() == null || currentMusic == null || !currentMusic.isPlaying()) {
+            return newTargets;
+        }
+
+        levelElapsedTime += deltaTime;
+
+        Array<TapTarget> tapTargets = currentLevelData.getAnalysis().tap_targets;
+        if (tapTargets != null) {
+            while (nextTargetIndex < tapTargets.size) {
+                TapTarget tapTarget = tapTargets.get(nextTargetIndex);
+                float spawnTime = tapTarget.time - TARGET_TRAVEL_TIME;
+
+                if (levelElapsedTime >= spawnTime) {
+                    float randomX = MathUtils.random(0, Gdx.graphics.getWidth() - 64);
+                    Target newTarget = new Target(randomX, TARGET_START_Y, "1", targetVelocityY);
+                    newTargets.add(newTarget);
+                    Gdx.app.log("LevelManager", "Spawned target at time: " + tapTarget.time + " (elapsed: " + levelElapsedTime + ")");
+                    nextTargetIndex++;
+                } else {
+                    break;
+                }
+            }
+        }
+        return newTargets;
+    }
+
+    public void stopLevel() {
+        if (currentMusic != null) {
+            currentMusic.stop();
+            currentMusic.dispose();
+            currentMusic = null;
+        }
+        currentLevelData = null;
+        levelElapsedTime = 0;
+        nextTargetIndex = 0;
+        Gdx.app.log("LevelManager", "Level stopped.");
+    }
+
+    public LevelData getLevel(String levelId) {
+        return levels.get(levelId);
+    }
+
+    public Map<String, LevelData> getAllLevels() {
+        return levels;
+    }
+
+    public static class LevelConfig {
+        public String id;
+        public String name;
+        public String musicFileName;
+        public String analysisFileName;
+        public String difficulty;
+    }
+
+    public static class LevelAnalysis {
+        public float tempo;
+        public Array<Float> beat_times;
+        public Array<Float> onset_times;
+        public Array<Float> rms_peak_times;
+        public Array<Float> ideal_beat_times; // Added field
+        public Array<TapTarget> tap_targets;
+        public Array<Object> spike_targets;
+        public SubdivisionData subdivisions;
+    }
+
+    public static class TapTarget {
+        public float time;
+        public Array<Float> window;
+    }
+
+    public static class SubdivisionData {
+        public int count;
+        public Array<Float> times;
+    }
+
+    public static class LevelData {
+        private String id;
+        private String name;
+        private String musicFilePath;
+        private String analysisFilePath;
+        private String difficulty;
+        private LevelAnalysis analysis;
+
+        public LevelData(String id, String name, String musicFilePath, String analysisFilePath, String difficulty, LevelAnalysis analysis) {
+            this.id = id;
+            this.name = name;
+            this.musicFilePath = musicFilePath;
+            this.analysisFilePath = analysisFilePath;
+            this.difficulty = difficulty;
+            this.analysis = analysis;
+        }
+
+        public String getId() { return id; }
+        public String getName() { return name; }
+        public String getMusicFilePath() { return musicFilePath; }
+        public String getAnalysisFilePath() { return analysisFilePath; }
+        public String getDifficulty() { return difficulty; }
+        public LevelAnalysis getAnalysis() { return analysis; }
+    }
+}

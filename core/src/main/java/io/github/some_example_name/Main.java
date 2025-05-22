@@ -1,5 +1,7 @@
 package io.github.some_example_name;
 
+import com.badlogic.gdx.Application;
+import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
@@ -14,6 +16,10 @@ import io.github.some_example_name.assets.GameAssets;
 import io.github.some_example_name.models.Bullet;
 import io.github.some_example_name.models.Crosshair;
 import io.github.some_example_name.models.Gun;
+import io.github.some_example_name.models.Target;
+import io.github.some_example_name.managers.LevelManager;
+import java.util.List;
+import java.util.ArrayList;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 
@@ -25,6 +31,8 @@ public class Main extends ApplicationAdapter {
     private Gun gun;
     private Crosshair crosshair;
     private Array<Bullet> bulletCasings;
+    private List<Target> activeTargets;
+    private LevelManager levelManager;
 
     // Gun movement and rendering properties
     private Vector2 gunPosition; // Current visual X, Y position of the gun
@@ -41,6 +49,9 @@ public class Main extends ApplicationAdapter {
 
     @Override
     public void create() {
+        // Enable debug logging
+        Gdx.app.setLogLevel(Application.LOG_DEBUG);
+        
         batch = new SpriteBatch();
         gameAssets = GameAssets.getInstance();
 
@@ -62,6 +73,11 @@ public class Main extends ApplicationAdapter {
 
         bulletCasings = new Array<>();
         staticGunTextureRegion = new TextureRegion(gameAssets.getGunTexture("gub1")); // Cache static gun frame
+        
+        // Initialize level system
+        levelManager = new LevelManager();
+        activeTargets = new ArrayList<>();
+        levelManager.startLevel("aint_that_a_kick_in_the_head");
 
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
@@ -69,8 +85,17 @@ public class Main extends ApplicationAdapter {
                 if (button == com.badlogic.gdx.Input.Buttons.LEFT) {
                     gun.shoot(); // Gun object handles its animation state and resets GameAsset animation time
                     // Spawn bullet casing at the gun's current visual position
-                    // Adjust spawn offset if needed to match gun's ejection port sprite
                     bulletCasings.add(new Bullet(gun.getX() - 1250f, gun.getY() + 20f)); // Adjusted offset
+
+                    // Check for target hits
+                    float mouseX = crosshair.getCenterX();
+                    float mouseY = crosshair.getCenterY();
+                    for (Target target : activeTargets) {
+                        if (!target.isDestroyed() && target.isHit(mouseX, mouseY)) {
+                            target.destroy();
+                            break; // Only destroy one target per click
+                        }
+                    }
                     return true;
                 }
                 return false;
@@ -112,6 +137,14 @@ public class Main extends ApplicationAdapter {
                 bulletCasings.removeIndex(i);
             }
         }
+
+        // Update targets
+        // Get new targets from level manager
+        List<Target> newTargets = levelManager.update(deltaTime);
+        activeTargets.addAll(newTargets);
+
+        // Update existing targets and remove those that are finished
+        activeTargets.removeIf(target -> target.update(deltaTime));
 
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         batch.begin();
@@ -168,6 +201,11 @@ public class Main extends ApplicationAdapter {
             casing.render(batch);
         }
 
+        // Draw targets
+        for (Target target : activeTargets) {
+            target.render(batch);
+        }
+
         crosshair.render(batch);
 
         batch.end();
@@ -180,5 +218,6 @@ public class Main extends ApplicationAdapter {
         batch.dispose();
         gameAssets.dispose(); // GameAssets should handle disposal of all its loaded textures (bar1, bar2, etc.)
         // staticGunTextureRegion does not need disposal if its Texture is managed by gameAssets
+        levelManager.stopLevel();
     }
 }
