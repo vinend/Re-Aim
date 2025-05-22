@@ -32,8 +32,8 @@ public class GameAssets implements Disposable {
     
     // Target animation (for destruction animation)
     private Animation<TextureRegion> targetAnimation;
-    private float targetAnimationTime = 0f;
-    private boolean isTargetAnimating = false;
+    // Removed: private float targetAnimationTime = 0f;
+    // Removed: private boolean isTargetAnimating = false;
     
     // Private constructor to ensure singleton pattern
     private GameAssets() {
@@ -139,15 +139,7 @@ public class GameAssets implements Disposable {
         animationTime += deltaTime;
         bulletCasingAnimationTime += deltaTime;
         
-        // Update target animation time if animating
-        if (isTargetAnimating) {
-            targetAnimationTime += deltaTime;
-            
-            // Check if the target animation is complete
-            if (targetAnimation.isAnimationFinished(targetAnimationTime)) {
-                isTargetAnimating = false;
-            }
-        }
+        // Removed target animation time update from here
     }
     
     // Getters for all texture types
@@ -224,35 +216,21 @@ public class GameAssets implements Disposable {
     }
 
     /**
-     * Gets the current frame of the target destruction animation
-     * @return The current TextureRegion from the target animation
+     * Gets the current frame of the target destruction animation.
+     * @param time The current animation time for a specific target.
+     * @return The current TextureRegion from the target animation.
      */
-    public TextureRegion getCurrentTargetFrame() {
-        return targetAnimation.getKeyFrame(targetAnimationTime, false); // false = don't loop
+    public TextureRegion getCurrentTargetFrame(float time) {
+        return targetAnimation.getKeyFrame(time, false); // false = don't loop
     }
-    
+
     /**
-     * Starts the target destruction animation
+     * Returns the target destruction Animation object.
+     * This allows individual targets to check if their animation is finished.
+     * @return The Animation<TextureRegion> for target destruction.
      */
-    public void startTargetAnimation() {
-        isTargetAnimating = true;
-        targetAnimationTime = 0f;
-    }
-    
-    /**
-     * Checks if the target is currently animating
-     * @return True if the target animation is active
-     */
-    public boolean isTargetAnimating() {
-        return isTargetAnimating;
-    }
-    
-    /**
-     * Checks if the target animation is finished
-     * @return True if the animation has completed
-     */
-    public boolean isTargetAnimationFinished() {
-        return targetAnimation.isAnimationFinished(targetAnimationTime);
+    public Animation<TextureRegion> getTargetAnimation() {
+        return targetAnimation;
     }
 
     /**

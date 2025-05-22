@@ -167,6 +167,11 @@ public class Main extends ApplicationAdapter {
             // A negative value moves it downwards from the screen bottom. 0 aligns bottom edge with screen bottom.
             float bar1YOffset = -30f; 
 
+            // Draw targets BEFORE bar1Texture so they appear behind it
+            for (Target target : activeTargets) {
+                target.render(batch);
+            }
+
             batch.draw(bar1Texture,
                        0,                      // X position (left edge of screen)
                        bar1YOffset,            // Y position (offset from bottom)
@@ -199,11 +204,6 @@ public class Main extends ApplicationAdapter {
         // Render bullet casings
         for (Bullet casing : bulletCasings) {
             casing.render(batch);
-        }
-
-        // Draw targets
-        for (Target target : activeTargets) {
-            target.render(batch);
         }
 
         crosshair.render(batch);

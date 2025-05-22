@@ -18,7 +18,9 @@ import java.util.ArrayList;
 public class LevelManager {
     private static final String LEVELS_CONFIG_PATH = "levels/levels.json";
     private static final String MUSIC_ASSET_PATH = "MUSIC/";
-    private static final float TARGET_TRAVEL_TIME = 2.0f;
+    // private static final float TARGET_TRAVEL_TIME = 2.0f; // Replaced by min/max
+    private static final float MIN_TARGET_TRAVEL_TIME = 1.5f; // Minimum time to reach peak
+    private static final float MAX_TARGET_TRAVEL_TIME = 2.5f; // Maximum time to reach peak
     private static final float TARGET_START_Y = 0;
 
     private Map<String, LevelData> levels;
@@ -27,14 +29,14 @@ public class LevelManager {
     private LevelData currentLevelData;
     private float levelElapsedTime;
     private int nextTargetIndex;
-    private float targetVelocityY;
+    // private float targetVelocityY; // Replaced by dynamic calculation
 
     public LevelManager() {
         levels = new HashMap<>();
         json = new Json();
         Gdx.app.debug("LevelManager", "Attempting to load levels from: " + LEVELS_CONFIG_PATH);
         loadLevels();
-        targetVelocityY = Gdx.graphics.getHeight() / TARGET_TRAVEL_TIME;
+        // targetVelocityY = Gdx.graphics.getHeight() / TARGET_TRAVEL_TIME; // Velocity now calculated per target
         Gdx.app.debug("LevelManager", "Loaded " + levels.size() + " levels");
     }
 
@@ -142,13 +144,27 @@ public class LevelManager {
         if (tapTargets != null) {
             while (nextTargetIndex < tapTargets.size) {
                 TapTarget tapTarget = tapTargets.get(nextTargetIndex);
-                float spawnTime = tapTarget.time - TARGET_TRAVEL_TIME;
+                // Calculate spawn time based on a random travel time for this target
+                float currentTargetTravelTime = MathUtils.random(MIN_TARGET_TRAVEL_TIME, MAX_TARGET_TRAVEL_TIME);
+                float spawnTime = tapTarget.time - currentTargetTravelTime;
 
                 if (levelElapsedTime >= spawnTime) {
-                    float randomX = MathUtils.random(0, Gdx.graphics.getWidth() - 64);
-                    Target newTarget = new Target(randomX, TARGET_START_Y, "1", targetVelocityY);
+                    float randomX = MathUtils.random(0, Gdx.graphics.getWidth() - 64); // Assuming 64 is target width
+                    
+                    // Calculate initial velocity for this specific target to reach screen top in currentTargetTravelTime
+                    // Simplified: v0 = H / t (ignoring gravity for initial upward velocity calculation for simplicity of peak height)
+                    // For a more physically accurate peak height with gravity: v0 = (H/t) + (0.5 * g * t)
+                    // Where H is screen height, t is currentTargetTravelTime, g is gravity (positive value)
+                    // For now, using a simpler approach that ensures varied travel times to peak.
+                    // The gravity in Target.java will handle the actual trajectory.
+                    float initialVelocityY = Gdx.graphics.getHeight() / currentTargetTravelTime;
+                    
+                    Target newTarget = new Target(randomX, TARGET_START_Y, "1", initialVelocityY);
                     newTargets.add(newTarget);
-                    Gdx.app.log("LevelManager", "Spawned target at time: " + tapTarget.time + " (elapsed: " + levelElapsedTime + ")");
+                    Gdx.app.log("LevelManager", "Spawned target at time: " + tapTarget.time + 
+                                                " (elapsed: " + levelElapsedTime + 
+                                                ", travelTime: " + currentTargetTravelTime +
+                                                ", initialVelY: " + initialVelocityY + ")");
                     nextTargetIndex++;
                 } else {
                     break;
