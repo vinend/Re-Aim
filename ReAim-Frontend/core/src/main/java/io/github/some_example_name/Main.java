@@ -5,6 +5,7 @@ import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.audio.Sound; // Added for sound effects
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -50,6 +51,11 @@ public class Main extends ApplicationAdapter {
     private Texture bar1Texture;
     private Texture bar2Texture;
 
+    // Sound effects
+    private Sound gunshotSound;
+    private Sound gunpingSound;
+    private int shotCounter = 0;
+
     @Override
     public void create() {
         // Enable debug logging
@@ -66,6 +72,10 @@ public class Main extends ApplicationAdapter {
         // Ensure these textures are loaded in GameAssets and that GameAssets.dispose() handles them
         bar1Texture = gameAssets.getBarTexture("bar1");
         bar2Texture = gameAssets.getBarTexture("bar2");
+
+        // Load sound effects
+        gunshotSound = Gdx.audio.newSound(Gdx.files.internal("GUN & BULLETS/GUNSHOOT.mp3"));
+        gunpingSound = Gdx.audio.newSound(Gdx.files.internal("GUN & BULLETS/GUNPING.mp3"));
 
         // Initialize crosshair first as its position might be used
         crosshair = new Crosshair("3R");
@@ -88,6 +98,20 @@ public class Main extends ApplicationAdapter {
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 if (button == com.badlogic.gdx.Input.Buttons.LEFT) {
                     gun.shoot(); // Gun object handles its animation state and resets GameAsset animation time
+                    
+                    // Play gunshot sound
+                    if (gunshotSound != null) {
+                        float volume = 0.15f; // Lowered volume
+                        float pitch = MathUtils.random(0.95f, 1.05f); // Slight random pitch
+                        gunshotSound.play(volume, pitch, 0f); // 0f for center pan
+                    }
+                    shotCounter++;
+                    if (gunpingSound != null && shotCounter % 8 == 0) {
+                        float volume = 0.2f; // Lowered volume for ping, slightly higher than gunshot for distinction
+                        float pitch = MathUtils.random(0.98f, 1.02f); // Slight random pitch
+                        gunpingSound.play(volume, pitch, 0f); // 0f for center pan
+                    }
+
                     // Spawn bullet casing at the gun's current visual position
                     bulletCasings.add(new Bullet(gun.getX() - 1250f, gun.getY() + 20f)); // Adjusted offset
 
@@ -242,5 +266,13 @@ public class Main extends ApplicationAdapter {
         gameAssets.dispose(); // GameAssets should handle disposal of all its loaded textures (bar1, bar2, etc.)
         // staticGunTextureRegion does not need disposal if its Texture is managed by gameAssets
         levelManager.stopLevel();
+
+        // Dispose of sound effects
+        if (gunshotSound != null) {
+            gunshotSound.dispose();
+        }
+        if (gunpingSound != null) {
+            gunpingSound.dispose();
+        }
     }
 }
