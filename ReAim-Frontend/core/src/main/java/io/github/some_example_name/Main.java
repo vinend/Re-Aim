@@ -215,22 +215,22 @@ public class Main extends ApplicationAdapter {
         batch.end();
 
         // Begin ShapeRenderer for drawing lines
-        shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix()); // Ensure ShapeRenderer uses the same camera as SpriteBatch
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(Color.WHITE);
+        // shapeRenderer.setProjectionMatrix(batch.getProjectionMatrix()); // Ensure ShapeRenderer uses the same camera as SpriteBatch
+        // shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        // shapeRenderer.setColor(Color.WHITE);
 
         // Draw lines between the first three active targets if they exist
-        if (activeTargets.size() >= 2) {
-            Target t0 = activeTargets.get(0);
-            Target t1 = activeTargets.get(1);
-            shapeRenderer.line(t0.getCenterX(), t0.getCenterY(), t1.getCenterX(), t1.getCenterY());
+        // if (activeTargets.size() >= 2) {
+        //     Target t0 = activeTargets.get(0);
+        //     Target t1 = activeTargets.get(1);
+        //     shapeRenderer.line(t0.getCenterX(), t0.getCenterY(), t1.getCenterX(), t1.getCenterY());
             
-            if (activeTargets.size() >= 3) {
-                Target t2 = activeTargets.get(2);
-                shapeRenderer.line(t1.getCenterX(), t1.getCenterY(), t2.getCenterX(), t2.getCenterY());
-            }
-        }
-        shapeRenderer.end();
+        //     if (activeTargets.size() >= 3) {
+        //         Target t2 = activeTargets.get(2);
+        //         shapeRenderer.line(t1.getCenterX(), t1.getCenterY(), t2.getCenterX(), t2.getCenterY());
+        //     }
+        // }
+        // shapeRenderer.end();
     }
 
     @Override

@@ -19,11 +19,14 @@ public class LevelManager {
     private static final String LEVELS_CONFIG_PATH = "levels/levels.json";
     private static final String MUSIC_ASSET_PATH = "MUSIC/";
     // private static final float TARGET_TRAVEL_TIME = 2.0f; // Replaced by min/max
-    private static final float MIN_TARGET_TRAVEL_TIME = 1.2f; // Minimum time to reach peak (reduced for higher max height)
-    private static final float MAX_TARGET_TRAVEL_TIME = 2.5f; // Maximum time to reach peak
+    private static final float MIN_TARGET_TRAVEL_TIME = 1.0f; // Further adjusted for higher peaks
+    private static final float MAX_TARGET_TRAVEL_TIME = 3.0f; // Further adjusted for more variation and height
     private static final float TARGET_START_Y = 0;
+    private static final float TARGET_WIDTH = 64f; // Assuming target width for spawn calculations
+    private static final float MIN_HORIZONTAL_SPACING = 120f; // Minimum horizontal distance between targets' left edges
 
     private Map<String, LevelData> levels;
+    private float lastTargetX = -1f; // X-coordinate of the last spawned target
     private Json json;
     private Music currentMusic;
     private LevelData currentLevelData;
@@ -149,7 +152,25 @@ public class LevelManager {
                 float spawnTime = tapTarget.time - currentTargetTravelTime;
 
                 if (levelElapsedTime >= spawnTime) {
-                    float randomX = MathUtils.random(0, Gdx.graphics.getWidth() - 64); // Assuming 64 is target width
+                    float randomX;
+                    int attempts = 0;
+                    final int MAX_ATTEMPTS = 10; // Prevent infinite loop if screen is too narrow for spacing
+
+                    do {
+                        randomX = MathUtils.random(0, Gdx.graphics.getWidth() - TARGET_WIDTH);
+                        attempts++;
+                        // Allow spawn if:
+                        // 1. It's the first target (lastTargetX == -1f)
+                        // 2. The screen is too narrow to enforce spacing meaningfully
+                        // 3. The spacing requirement is met
+                        if (lastTargetX == -1f ||
+                            (Gdx.graphics.getWidth() - TARGET_WIDTH) < MIN_HORIZONTAL_SPACING || // Not enough distinct positions
+                            Math.abs(randomX - lastTargetX) >= MIN_HORIZONTAL_SPACING) {
+                            break;
+                        }
+                    } while (attempts < MAX_ATTEMPTS);
+                    
+                    lastTargetX = randomX; // Update the last spawned target's X position
                     
                     // Calculate initial velocity for this specific target to reach screen top in currentTargetTravelTime
                     // Simplified: v0 = H / t (ignoring gravity for initial upward velocity calculation for simplicity of peak height)
@@ -157,7 +178,8 @@ public class LevelManager {
                     // Where H is screen height, t is currentTargetTravelTime, g is gravity (positive value)
                     // For now, using a simpler approach that ensures varied travel times to peak.
                     // The gravity in Target.java will handle the actual trajectory.
-                    float initialVelocityY = Gdx.graphics.getHeight() / currentTargetTravelTime;
+                    // Increased target height by multiplying Gdx.graphics.getHeight()
+                    float initialVelocityY = (Gdx.graphics.getHeight() * 1.8f) / currentTargetTravelTime; 
                     
                     Target newTarget = new Target(randomX, TARGET_START_Y, "1", initialVelocityY);
                     newTargets.add(newTarget);
