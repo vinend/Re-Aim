@@ -21,13 +21,14 @@ public class LevelManager {
     private static final String LEVELS_CONFIG_PATH = "MUSIC/levels/levels.json"; // Updated path
     private static final String MUSIC_ASSET_PATH = "MUSIC/";
     // private static final float TARGET_TRAVEL_TIME = 2.0f; // Replaced by min/max
-    private static final float MIN_TARGET_TRAVEL_TIME = 1.0f; // Further adjusted for higher peaks
-    private static final float MAX_TARGET_TRAVEL_TIME = 3.0f; // Further adjusted for more variation and height
+    private static final float MIN_TARGET_TRAVEL_TIME = 0.5f; // Adjusted for more velocity variation (faster min speed)
+    private static final float MAX_TARGET_TRAVEL_TIME = 1.5f; // Adjusted for more velocity variation (slower max speed)
     private static final float TARGET_START_Y = 0;
-    private static final float TARGET_WIDTH = 64f; // Assuming target width for spawn calculations
+    // private static final float TARGET_WIDTH = 64f; // Replaced by dynamic defaultTargetActualWidth
     private static final float MIN_HORIZONTAL_SPACING = 120f; // Minimum horizontal distance between targets' left edges
 
     private Map<String, LevelData> levels;
+    private float defaultTargetActualWidth; // Stores the actual width of the default target type "1"
     private float lastTargetX = -1f; // X-coordinate of the last spawned target
     private Json json;
     private Music currentMusic;
@@ -41,6 +42,19 @@ public class LevelManager {
     private LevelManager() { // Private constructor for singleton
         levels = new HashMap<>();
         json = new Json();
+
+        // Determine the actual width of the default target type "1"
+        // This requires GameAssets to be initialized if LevelManager is a very early singleton.
+        // Assuming GameAssets is available when LevelManager.getInstance() is first called.
+        com.badlogic.gdx.graphics.Texture defaultTargetTexture = io.github.some_example_name.assets.GameAssets.getInstance().getTargetTexture("1");
+        if (defaultTargetTexture != null) {
+            this.defaultTargetActualWidth = defaultTargetTexture.getWidth();
+            Gdx.app.log("LevelManager", "Default target actual width (type '1'): " + this.defaultTargetActualWidth);
+        } else {
+            this.defaultTargetActualWidth = 64f; // Fallback if texture "1" is not found
+            Gdx.app.error("LevelManager", "Default target texture (type '1') not found. Using fallback width: " + this.defaultTargetActualWidth);
+        }
+        
         Gdx.app.debug("LevelManager", "Attempting to load levels from: " + LEVELS_CONFIG_PATH);
         loadLevels();
         // targetVelocityY = Gdx.graphics.getHeight() / TARGET_TRAVEL_TIME; // Velocity now calculated per target
@@ -169,14 +183,15 @@ public class LevelManager {
                     final int MAX_ATTEMPTS = 10; // Prevent infinite loop if screen is too narrow for spacing
 
                     do {
-                        randomX = MathUtils.random(0, Gdx.graphics.getWidth() - TARGET_WIDTH);
+                        // Use actual width of the default target for spawn calculation
+                        randomX = MathUtils.random(0, Gdx.graphics.getWidth() - this.defaultTargetActualWidth);
                         attempts++;
                         // Allow spawn if:
                         // 1. It's the first target (lastTargetX == -1f)
-                        // 2. The screen is too narrow to enforce spacing meaningfully
+                        // 2. The screen is too narrow to enforce spacing meaningfully (using actual width)
                         // 3. The spacing requirement is met
                         if (lastTargetX == -1f ||
-                            (Gdx.graphics.getWidth() - TARGET_WIDTH) < MIN_HORIZONTAL_SPACING || // Not enough distinct positions
+                            (Gdx.graphics.getWidth() - this.defaultTargetActualWidth) < MIN_HORIZONTAL_SPACING || // Not enough distinct positions
                             Math.abs(randomX - lastTargetX) >= MIN_HORIZONTAL_SPACING) {
                             break;
                         }

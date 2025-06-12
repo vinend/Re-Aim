@@ -18,10 +18,11 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ScreenUtils;
 import io.github.some_example_name.Main;
 import io.github.some_example_name.assets.GameAssets;
-import io.github.some_example_name.models.*;
+import io.github.some_example_name.models.*; // ScoreEffect will be covered by this wildcard
 import io.github.some_example_name.managers.LevelManager;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Iterator; // For safely removing elements from list while iterating
 
 public class GameScreen implements Screen {
     private final Main game;
@@ -35,6 +36,7 @@ public class GameScreen implements Screen {
     private Crosshair crosshair;
     private Array<Bullet> bulletCasings;
     private List<Target> activeTargets;
+    private List<ScoreEffect> activeScoreEffects; // Added for score effects
     private LevelManager levelManager;
 
     // Gun movement and rendering properties
@@ -91,6 +93,7 @@ public class GameScreen implements Screen {
         // Initialize level system
         levelManager = LevelManager.getInstance(); // Use singleton instance
         activeTargets = new ArrayList<>();
+        activeScoreEffects = new ArrayList<>(); // Initialize the list for score effects
         if (this.currentLevelId != null && !this.currentLevelId.isEmpty()) {
             levelManager.startLevel(this.currentLevelId);
         } else {
@@ -132,10 +135,26 @@ public class GameScreen implements Screen {
                     float mouseY = crosshair.getCenterY();
                     for (Target target : activeTargets) {
                         if (!target.isDestroyed() && target.isHit(mouseX, mouseY)) {
-                            target.destroy();
-                            currentScore += 100; // Basic scoring
+                            target.destroy(); // Mark target as destroyed
+
+                            // Determine score (placeholder: random score for now)
+                            int[] possibleScores = {100, 300, 600, 1000};
+                            int scoreValue = possibleScores[MathUtils.random(possibleScores.length - 1)];
+                            currentScore += scoreValue; // Add to total score
+
+                            // Create score effect
+                            String scoreTextureKey = "score" + scoreValue;
+                            Texture scoreTexture = gameAssets.getScoreTexture(scoreTextureKey);
+                            if (scoreTexture != null) {
+                                // Use existing getCenterX() and getCenterY() from Target model
+                                float targetCenterX = target.getCenterX();
+                                float targetCenterY = target.getCenterY();
+                                ScoreEffect effect = new ScoreEffect(scoreTexture, targetCenterX, targetCenterY, 0.75f); // 0.75 second fade
+                                activeScoreEffects.add(effect);
+                            }
+                            
                             // submitScore(); // Moved to end of level
-                            break;
+                            break; // Assume one bullet hits one target
                         }
                     }
                     return true;
@@ -207,6 +226,15 @@ public class GameScreen implements Screen {
         activeTargets.addAll(newTargets);
         activeTargets.removeIf(target -> target.update(delta)); // Targets remove themselves if destroyed or timed out
 
+        // Update score effects
+        Iterator<ScoreEffect> effectIterator = activeScoreEffects.iterator();
+        while (effectIterator.hasNext()) {
+            ScoreEffect effect = effectIterator.next();
+            if (!effect.update(delta)) { // update returns false if effect is finished
+                effectIterator.remove();
+            }
+        }
+
         // Check for level completion and submit score
         if (!scoreSubmittedThisAttempt && levelManager.isSpawningComplete()) {
             // Spawning is done. Now check if music has finished OR if all active targets are also cleared.
@@ -250,6 +278,11 @@ public class GameScreen implements Screen {
             // Draw targets
             for (Target target : activeTargets) {
                 target.render(batch);
+            }
+
+            // Draw score effects
+            for (ScoreEffect effect : activeScoreEffects) {
+                effect.render(batch);
             }
 
             batch.draw(bar1Texture, 0, bar1YOffset, screenWidth, scaledBar1Height);
