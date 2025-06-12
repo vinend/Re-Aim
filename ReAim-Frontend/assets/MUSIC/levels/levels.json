@@ -34,6 +34,13 @@
             "musicFileName": "Heartaches by the Number.mp3",
             "analysisFileName": "Heartaches by the Number_analysis.json",
             "difficulty": "medium"
+        },
+        {
+            "id": "love_me_as_though_there_were_no_tomorrow",
+            "name": "Love Me as Though There Were No Tomorrow",
+            "musicFileName": "Love Me as Though There Were No Tomorrow.mp3",
+            "analysisFileName": "Love Me as Though There Were No Tomorrow_analysis.json",
+            "difficulty": "medium"
         }
     ]
 }
