@@ -1,7 +1,7 @@
-# ReAim - Dokumentasi Backend
+# ReAim
 
 ## Daftar Isi
-- [ReAim - Dokumentasi Backend](#reaim---dokumentasi-backend)
+- [ReAim](#reaim)
   - [Daftar Isi](#daftar-isi)
   - [Pendahuluan](#pendahuluan)
   - [Teknologi yang Digunakan](#teknologi-yang-digunakan)
