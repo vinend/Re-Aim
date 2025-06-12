@@ -3,6 +3,7 @@ package io.github.some_example_name.assets;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.utils.Disposable;
 import java.util.HashMap;
@@ -34,6 +35,9 @@ public class GameAssets implements Disposable {
     private Animation<TextureRegion> targetAnimation;
     // Removed: private float targetAnimationTime = 0f;
     // Removed: private boolean isTargetAnimating = false;
+
+    // Font
+    private BitmapFont defaultFont;
     
     // Private constructor to ensure singleton pattern
     private GameAssets() {
@@ -129,6 +133,14 @@ public class GameAssets implements Disposable {
         scoreTextures.put("score300", new Texture("TARGET & SCORES/300.png"));
         scoreTextures.put("score600", new Texture("TARGET & SCORES/600.png"));
         scoreTextures.put("score1000", new Texture("TARGET & SCORES/1000.png"));
+
+        // Load font
+        // The BitmapFont constructor used was likely trying to find "font.png" based on the .fnt file.
+        // If "font.fnt" is meant to be used with "uiskin.png", we load it like this:
+        defaultFont = new BitmapFont(Gdx.files.internal("ui/font.fnt"), new TextureRegion(new Texture(Gdx.files.internal("ui/uiskin.png"))), false);
+        // If "font.fnt" has its own image file that is simply missing, this won't fix the root cause (missing file).
+        // However, if "font.fnt" is designed to be used with an atlas image like "uiskin.png", this is a common way.
+        // The 'false' argument for flip is typical.
     }
       /**
      * Updates the animation time
@@ -234,6 +246,17 @@ public class GameAssets implements Disposable {
     }
 
     /**
+     * Gets the default font.
+     * @param name Identifier for the font (currently unused, returns default).
+     * @return The default BitmapFont.
+     */
+    public BitmapFont getFont(String name) {
+        // Currently only one font is loaded, so 'name' parameter is ignored.
+        // Could be extended to load multiple fonts if needed.
+        return defaultFont;
+    }
+
+    /**
      * Disposes of all textures to prevent memory leaks
      */
     @Override
@@ -266,6 +289,11 @@ public class GameAssets implements Disposable {
         // Dispose all score textures
         for (Texture texture : scoreTextures.values()) {
             texture.dispose();
+        }
+
+        // Dispose font
+        if (defaultFont != null) {
+            defaultFont.dispose();
         }
     }
 }

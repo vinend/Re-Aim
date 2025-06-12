@@ -257,6 +257,36 @@ public class LevelManager {
         return currentMusic != null && currentMusic.isPlaying();
     }
 
+    public void pauseMusic() {
+        if (currentMusic != null && currentMusic.isPlaying()) {
+            currentMusic.pause();
+            Gdx.app.log("LevelManager", "Music paused.");
+        }
+    }
+
+    public void resumeMusic() {
+        if (currentMusic != null && !currentMusic.isPlaying()) {
+            // Check if level is active or if it was stopped before trying to play
+            if (currentLevelData != null) { // Ensure a level is supposed to be active
+                 currentMusic.play();
+                 Gdx.app.log("LevelManager", "Music resumed.");
+            } else {
+                Gdx.app.log("LevelManager", "Music not resumed, no active level.");
+            }
+        }
+    }
+
+    public void stopMusic() { // Renamed from stopLevel to be more specific if only music stop is needed
+        if (currentMusic != null) {
+            currentMusic.stop();
+            // currentMusic.dispose(); // Dispose only when level truly ends or manager is disposed
+            // currentMusic = null; // Keep reference if it might be resumed or re-used by same level restart
+            Gdx.app.log("LevelManager", "Music stopped.");
+        }
+        // Not resetting level data here, as this method is just for stopping music.
+        // stopLevel() handles full level state reset.
+    }
+
     private void syncLevelsWithBackend() {
         if (levels.isEmpty()) {
             Gdx.app.log("LevelManagerSync", "No levels loaded locally to sync.");

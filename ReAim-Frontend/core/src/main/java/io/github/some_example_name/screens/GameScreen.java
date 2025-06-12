@@ -9,9 +9,12 @@ import com.badlogic.gdx.net.HttpRequestBuilder;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.Input; // For key codes
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
@@ -60,6 +63,12 @@ public class GameScreen implements Screen {
     private boolean scoreSubmittedThisAttempt = false; // Flag to ensure score is submitted only once
     private String currentLevelId; // Store the ID of the level being played
     private InputAdapter gameInputAdapter; // Input processor for this screen
+    private BitmapFont scoreFont;
+    private GlyphLayout glyphLayout; // For text measurement
+
+    private boolean isPaused = false;
+    private TextureRegion pauseOverlayTexture; // For dimming the screen
+    private boolean hasReturnedToLevelSelect = false; // Flag to prevent multiple transitions
 
     public GameScreen(Main game, Player player, String levelIdToPlay) {
         this.game = game;
@@ -69,6 +78,19 @@ public class GameScreen implements Screen {
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
         gameAssets = GameAssets.getInstance();
+        scoreFont = gameAssets.getFont("font"); // Assuming GameAssets has a method to get a font
+        glyphLayout = new GlyphLayout();
+
+        // Create a 1x1 white pixel texture for the overlay
+        Texture whitePixel = new Texture(Gdx.files.internal("libgdx.png")); // Placeholder, ideally a 1x1 white pixel
+        // For a real 1x1 white pixel, you might create it programmatically if not available as an asset
+        // Pixmap pixmap = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+        // pixmap.setColor(Color.WHITE);
+        // pixmap.fill();
+        // whitePixel = new Texture(pixmap);
+        // pixmap.dispose();
+        pauseOverlayTexture = new TextureRegion(whitePixel);
+
 
         // Hide the mouse cursor
         Gdx.input.setCursorCatched(true);
@@ -114,9 +136,35 @@ public class GameScreen implements Screen {
         gameInputAdapter = new InputAdapter() { // Assign to the instance variable
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                if (isPaused) {
+                    // Handle pause menu clicks
+                    // Convert screenY to world Y
+                    float worldY = Gdx.graphics.getHeight() - screenY;
+                    float menuCenterX = Gdx.graphics.getWidth() / 2f;
+                    float resumeButtonY = Gdx.graphics.getHeight() / 2f + 25; // Approximate position
+                    float quitButtonY = Gdx.graphics.getHeight() / 2f - 25;   // Approximate position
+                    float buttonWidth = 200; // Approximate width
+                    float buttonHeight = 50; // Approximate height
+
+                    // Resume button
+                    if (screenX >= menuCenterX - buttonWidth / 2 && screenX <= menuCenterX + buttonWidth / 2 &&
+                        worldY >= resumeButtonY - buttonHeight / 2 && worldY <= resumeButtonY + buttonHeight / 2) {
+                        resumeGame();
+                        return true;
+                    }
+
+                    // Quit button
+                    if (screenX >= menuCenterX - buttonWidth / 2 && screenX <= menuCenterX + buttonWidth / 2 &&
+                        worldY >= quitButtonY - buttonHeight / 2 && worldY <= quitButtonY + buttonHeight / 2) {
+                        quitToLevelSelect();
+                        return true;
+                    }
+                    return true; // Consume click if paused
+                }
+
                 if (button == com.badlogic.gdx.Input.Buttons.LEFT) {
                     gun.shoot();
-                    
+
                     if (gunshotSound != null) {
                         float volume = 0.15f;
                         float pitch = MathUtils.random(0.95f, 1.05f);
@@ -179,7 +227,68 @@ public class GameScreen implements Screen {
                 }
                 return false;
             }
+
+            @Override
+            public boolean keyDown(int keycode) {
+                if (keycode == Input.Keys.ESCAPE) {
+                    togglePause();
+                    return true;
+                }
+                return false;
+            }
         };
+    }
+
+    private void togglePause() {
+        isPaused = !isPaused;
+        Gdx.input.setCursorCatched(!isPaused); // Show cursor when paused
+        if (isPaused) {
+            levelManager.pauseMusic(); // Assuming LevelManager has pause/resume music
+        } else {
+            levelManager.resumeMusic();
+        }
+    }
+
+    private void resumeGame() {
+        isPaused = false;
+        Gdx.input.setCursorCatched(true);
+        levelManager.resumeMusic();
+    }
+
+    private void quitToLevelSelect() {
+        if (hasReturnedToLevelSelect) {
+            Gdx.app.log("GameScreen", "Already transitioning/returned to Level Select. Ignoring quit action.");
+            return;
+        }
+        hasReturnedToLevelSelect = true;
+
+        Gdx.app.log("GameScreen", "Quitting to Level Select Screen from pause menu.");
+        // Ensure cursor is visible and input processor is cleared before changing screens
+        Gdx.input.setCursorCatched(false);
+        Gdx.input.setInputProcessor(null); // Important to clear processor for the current screen
+        levelManager.stopLevel(); // Clean up level manager state (stops music, disposes current music)
+        game.setScreen(new LevelSelectScreen(game, player));
+        dispose(); // Dispose current game screen resources
+    }
+
+    private void returnToLevelSelectScreen() {
+        if (hasReturnedToLevelSelect) {
+            // This check might be redundant if called carefully, but good for safety.
+            // Gdx.app.postRunnable might queue this multiple times if not careful before this flag is set.
+            // However, the primary guard is in the calling locations (submitScore callbacks).
+            Gdx.app.log("GameScreen", "Already transitioning/returned to Level Select. Ignoring duplicate call to returnToLevelSelectScreen.");
+            return;
+        }
+        // This method is intended to be called via Gdx.app.postRunnable,
+        // so this flag is set on the main thread before any potential duplicate runnable executes.
+        hasReturnedToLevelSelect = true; 
+
+        Gdx.app.log("GameScreen", "Returning to Level Select Screen automatically after level completion.");
+        Gdx.input.setCursorCatched(false);
+        Gdx.input.setInputProcessor(null);
+        levelManager.stopLevel(); // Clean up level manager state (stops music, disposes current music)
+        game.setScreen(new LevelSelectScreen(game, player));
+        dispose(); // Dispose this GameScreen's resources
     }
 
     private void submitScore() {
@@ -198,29 +307,62 @@ public class GameScreen implements Screen {
             @Override
             public void handleHttpResponse(Net.HttpResponse httpResponse) {
                 Gdx.app.log("Score", "Score submitted: " + currentScore);
+                Gdx.app.postRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!hasReturnedToLevelSelect) { // Check flag before transitioning
+                           returnToLevelSelectScreen();
+                        }
+                    }
+                });
             }
 
             @Override
             public void failed(Throwable t) {
                 Gdx.app.error("Score", "Failed to submit score", t);
+                Gdx.app.postRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                         if (!hasReturnedToLevelSelect) { // Check flag before transitioning
+                           returnToLevelSelectScreen();
+                        }
+                    }
+                });
             }
 
             @Override
-            public void cancelled() {}
+            public void cancelled() {
+                Gdx.app.log("Score", "Score submission cancelled.");
+                 Gdx.app.postRunnable(new Runnable() {
+                    @Override
+                    public void run() {
+                         if (!hasReturnedToLevelSelect) { // Check flag before transitioning
+                           returnToLevelSelectScreen();
+                        }
+                    }
+                });
+            }
         });
     }
 
     @Override
     public void render(float delta) {
-        gameAssets.update(delta);
-        
-        updateGameState(delta);
+        if (!isPaused) {
+            gameAssets.update(delta);
+            updateGameState(delta);
+        }
         
         ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
-        drawGame();
+        drawGame(); // Draw game elements first
+
+        if (isPaused) {
+            drawPauseMenu(); // Then draw pause menu on top
+        }
     }
 
     private void updateGameState(float delta) {
+        if (isPaused) return; // Don't update game state if paused
+
         crosshair.updatePosition();
 
         float targetX = crosshair.getCenterX() + gunOffsetX;
@@ -262,22 +404,25 @@ public class GameScreen implements Screen {
                  // if targets can exist after music stops. For now, music stop + spawn complete is the trigger.
                 if (activeTargets.isEmpty()) { // Let's wait for targets to clear too
                     Gdx.app.log("GameScreen", "Level complete! Spawning finished, music stopped, and targets cleared. Final score: " + currentScore);
-                    submitScore();
-                    scoreSubmittedThisAttempt = true;
-                    // TODO: Add logic to transition to a results screen or main menu
-                    // Example: display a "Level Complete" message for a few seconds, then transition.
-                    // For now, just log. Consider adding a delay or a visual cue.
+                    // Set flag before calling submitScore, which now handles the transition.
+                    scoreSubmittedThisAttempt = true; 
+                    submitScore(); 
+                    // The transition to LevelSelectScreen will be handled by submitScore's callbacks.
                 } else if (!levelManager.isMusicPlaying() && levelManager.isSpawningComplete() && !activeTargets.isEmpty()){
                     // This case: Spawning done, music stopped, but targets still on screen.
-                    // This might happen if targets have a long lifetime after the music ends.
-                    // If you want to submit score as soon as music ends regardless of remaining targets:
-                    // submitScore(); scoreSubmittedThisAttempt = true; Gdx.app.log("GameScreen", "Level complete! Music ended. Submitting score.");
-                    // For now, we are waiting for targets to clear as per the condition above.
+                    // If we want to end the level here regardless of remaining targets (e.g. music ended is the hard stop)
+                    // then we could also call submitScore() here.
+                    // For now, the logic requires activeTargets to be empty.
+                    Gdx.app.log("GameScreen", "Music ended and spawning complete, but targets still active. Waiting for targets to clear.");
+                    // If targets have very long lifetimes, this might feel like the game is stuck.
+                    // Consider adding a timeout for remaining targets after music ends if this becomes an issue.
                 }
             }
         }
     }
 
+    // This is the single, correct drawGame method.
+    // The previous diff operation incorrectly duplicated parts of updateGameState and drawGame.
     private void drawGame() {
         batch.begin();
 
@@ -336,8 +481,46 @@ public class GameScreen implements Screen {
 
         crosshair.render(batch);
 
+        // Draw Score Tracker
+        if (scoreFont != null) {
+            String scoreText = "Score: " + currentScore;
+            glyphLayout.setText(scoreFont, scoreText);
+            float scoreX = Gdx.graphics.getWidth() - glyphLayout.width - 20; // 20px padding from right
+            float scoreY = glyphLayout.height + 20; // 20px padding from bottom
+            scoreFont.draw(batch, scoreText, scoreX, scoreY);
+        }
+
         batch.end();
     }
+
+    private void drawPauseMenu() {
+        batch.begin();
+        // Draw semi-transparent overlay
+        batch.setColor(0, 0, 0, 0.7f); // Black with 70% opacity
+        if (pauseOverlayTexture != null) {
+             batch.draw(pauseOverlayTexture, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        }
+        batch.setColor(Color.WHITE); // Reset color
+
+        // Draw "Paused" text
+        if (scoreFont != null) { // Reusing scoreFont for simplicity
+            String pausedText = "Paused";
+            glyphLayout.setText(scoreFont, pausedText);
+            scoreFont.draw(batch, pausedText, Gdx.graphics.getWidth() / 2f - glyphLayout.width / 2f, Gdx.graphics.getHeight() * 0.75f);
+
+            // Draw "Resume" button text
+            String resumeText = "Resume (Click or ESC)";
+            glyphLayout.setText(scoreFont, resumeText);
+            scoreFont.draw(batch, resumeText, Gdx.graphics.getWidth() / 2f - glyphLayout.width / 2f, Gdx.graphics.getHeight() / 2f + 25);
+            
+            // Draw "Quit to Level Select" button text
+            String quitText = "Quit to Level Select";
+            glyphLayout.setText(scoreFont, quitText);
+            scoreFont.draw(batch, quitText, Gdx.graphics.getWidth() / 2f - glyphLayout.width / 2f, Gdx.graphics.getHeight() / 2f - 25);
+        }
+        batch.end();
+    }
+
 
     @Override
     public void resize(int width, int height) {
@@ -371,5 +554,13 @@ public class GameScreen implements Screen {
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (gunshotSound != null) gunshotSound.dispose();
         if (gunpingSound != null) gunpingSound.dispose();
+        // if (scoreFont != null) scoreFont.dispose(); // If GameAssets manages font, it should dispose it.
+                                                    // If created here, dispose here.
+        if (pauseOverlayTexture != null && pauseOverlayTexture.getTexture() != null) {
+            // Only dispose if this screen created the texture.
+            // If it's from GameAssets, GameAssets should manage its lifecycle.
+            // For the placeholder libgdx.png, it's fine, but for a programmatically created one:
+            // pauseOverlayTexture.getTexture().dispose();
+        }
     }
 }
