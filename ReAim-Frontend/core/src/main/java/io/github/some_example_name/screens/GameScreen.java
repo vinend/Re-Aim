@@ -137,9 +137,27 @@ public class GameScreen implements Screen {
                         if (!target.isDestroyed() && target.isHit(mouseX, mouseY)) {
                             target.destroy(); // Mark target as destroyed
 
-                            // Determine score (placeholder: random score for now)
-                            int[] possibleScores = {100, 300, 600, 1000};
-                            int scoreValue = possibleScores[MathUtils.random(possibleScores.length - 1)];
+                            // Determine score based on accuracy
+                            float targetCenterX = target.getCenterX();
+                            float targetCenterY = target.getCenterY();
+                            float distance = Vector2.dst(mouseX, mouseY, targetCenterX, targetCenterY);
+
+                            // Define score tiers based on distance from center
+                            // Target.bounds.width and Target.bounds.height are already scaled
+                            float maxDistanceForMaxScore = Math.min(target.getBounds().width, target.getBounds().height) * 0.15f; // e.g., 15% of smallest dimension for highest score
+                            float maxDistanceForMidScore = Math.min(target.getBounds().width, target.getBounds().height) * 0.30f; // e.g., 30% for mid
+                            float maxDistanceForLowScore = Math.min(target.getBounds().width, target.getBounds().height) * 0.50f; // e.g., 50% for low
+
+                            int scoreValue;
+                            if (distance <= maxDistanceForMaxScore) {
+                                scoreValue = 1000;
+                            } else if (distance <= maxDistanceForMidScore) {
+                                scoreValue = 600;
+                            } else if (distance <= maxDistanceForLowScore) {
+                                scoreValue = 300;
+                            } else {
+                                scoreValue = 100; // Hit was on the edge
+                            }
                             currentScore += scoreValue; // Add to total score
 
                             // Create score effect
@@ -147,8 +165,8 @@ public class GameScreen implements Screen {
                             Texture scoreTexture = gameAssets.getScoreTexture(scoreTextureKey);
                             if (scoreTexture != null) {
                                 // Use existing getCenterX() and getCenterY() from Target model
-                                float targetCenterX = target.getCenterX();
-                                float targetCenterY = target.getCenterY();
+                                // float targetCenterX = target.getCenterX(); // Already defined above
+                                // float targetCenterY = target.getCenterY(); // Already defined above
                                 ScoreEffect effect = new ScoreEffect(scoreTexture, targetCenterX, targetCenterY, 0.75f); // 0.75 second fade
                                 activeScoreEffects.add(effect);
                             }

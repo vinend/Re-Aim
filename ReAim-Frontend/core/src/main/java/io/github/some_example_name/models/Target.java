@@ -13,7 +13,7 @@ import io.github.some_example_name.assets.GameAssets;
  */
 public class Target {
     private static final float TARGET_SCALE = 0.3f; // Scale factor for the target
-    private static final float GRAVITY = -300f; // Reduced gravity for more hang time and height
+    private static final float GRAVITY = -500f; // Reduced gravity for more hang time and height
     
     private float x, y;
     private float velocityY;
@@ -151,5 +151,9 @@ public class Target {
 
     public float getCenterY() {
         return bounds.y + bounds.height / 2f;
+    }
+
+    public Rectangle getBounds() {
+        return bounds;
     }
 }

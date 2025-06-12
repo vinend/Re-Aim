@@ -22,7 +22,7 @@ public class LevelManager {
     private static final String MUSIC_ASSET_PATH = "MUSIC/";
     // private static final float TARGET_TRAVEL_TIME = 2.0f; // Replaced by min/max
     private static final float MIN_TARGET_TRAVEL_TIME = 0.5f; // Adjusted for more velocity variation (faster min speed)
-    private static final float MAX_TARGET_TRAVEL_TIME = 1.5f; // Adjusted for more velocity variation (slower max speed)
+    private static final float MAX_TARGET_TRAVEL_TIME = 2.5f; // Adjusted for more velocity variation (slower max speed)
     private static final float TARGET_START_Y = 0;
     // private static final float TARGET_WIDTH = 64f; // Replaced by dynamic defaultTargetActualWidth
     private static final float MIN_HORIZONTAL_SPACING = 120f; // Minimum horizontal distance between targets' left edges
