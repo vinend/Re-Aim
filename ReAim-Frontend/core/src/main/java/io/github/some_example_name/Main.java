@@ -51,9 +51,6 @@ public class Main extends Game {
         // The application will wait here until the script is finished.
         runAnalysisScript();
         
-        // 2. Load, modify, and post the newly updated level data from JSON.
-        loadLevelsAndPost();
-        
         // 3. The game can now proceed to the main menu.
         this.setScreen(new MainMenuScreen(this));
     }
@@ -106,83 +103,6 @@ public class Main extends Game {
         } catch (Exception e) {
             Gdx.app.error("Main_Analyzer", "Failed to run Python script. Is Python installed and in your system's PATH?", e);
         }
-    }
-
-
-    /**
-     * Loads levels.json, parses it, and then posts the data to a server.
-     */
-    private void loadLevelsAndPost() {
-        try {
-            // Define the path to the file within the 'assets' directory.
-            FileHandle fileHandle = Gdx.files.internal("MUSIC/data/levels.json");
-            
-            // Read the entire file into a string.
-            String jsonString = fileHandle.readString();
-            
-            // Replace all occurrences of "id": with "_id": for local parsing.
-            String modifiedJsonString = jsonString.replaceAll("\"id\":", "\"_id\":");
-            
-            // Use LibGDX's built-in JSON utility to parse the modified string.
-            Json json = new Json();
-            levelsData = json.fromJson(Levels.class, modifiedJsonString);
-            
-            // (Optional) Log the results to confirm successful loading.
-            if (levelsData != null && levelsData.levels != null) {
-                Gdx.app.log("Main", "Successfully loaded " + levelsData.levels.size + " levels.");
-                // Post the loaded data to the server.
-                postLevelsToServer();
-            } else {
-                 Gdx.app.error("Main", "Failed to parse levels.json after loading.");
-            }
-
-        } catch (Exception e) {
-            // Log any errors that occur during file loading or parsing.
-            Gdx.app.error("Main", "Could not load or parse MUSIC/data/levels.json", e);
-        }
-    }
-
-    /**
-     * Sends the loaded level data to a server endpoint via HTTP POST.
-     */
-    private void postLevelsToServer() {
-        if (levelsData == null || levelsData.levels == null || levelsData.levels.isEmpty()) {
-            Gdx.app.log("Main_WebServer", "No level data to post.");
-            return;
-        }
-
-        // Convert the Java object back to a JSON string to send.
-        Json json = new Json(JsonWriter.OutputType.json);
-        String jsonDataString = json.toJson(levelsData);
-
-        // Create an HTTP request object
-        Net.HttpRequest httpRequest = new Net.HttpRequest(Net.HttpMethods.POST);
-        httpRequest.setUrl("http://localhost:3000/api/levels/create");
-        httpRequest.setHeader("Content-Type", "application/json");
-        httpRequest.setContent(jsonDataString);
-
-        Gdx.app.log("Main_WebServer", "Posting level data to " + httpRequest.getUrl());
-        Gdx.app.log("Main_WebServer", "Request Body: " + jsonDataString);
-
-
-        // Send the request and define a listener for the response
-        Gdx.net.sendHttpRequest(httpRequest, new Net.HttpResponseListener() {
-            @Override
-            public void handleHttpResponse(Net.HttpResponse httpResponse) {
-                Gdx.app.log("Main_WebServer", "Server responded with status: " + httpResponse.getStatus().getStatusCode());
-                Gdx.app.log("Main_WebServer", "Response: " + httpResponse.getResultAsString());
-            }
-
-            @Override
-            public void failed(Throwable t) {
-                Gdx.app.error("Main_WebServer", "HTTP request failed!", t);
-            }
-
-            @Override
-            public void cancelled() {
-                Gdx.app.error("Main_WebServer", "HTTP request was cancelled.");
-            }
-        });
     }
 
 
