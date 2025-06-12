@@ -56,10 +56,13 @@ public class GameScreen implements Screen {
     private int shotCounter = 0;
     private int currentScore = 0;
     private boolean scoreSubmittedThisAttempt = false; // Flag to ensure score is submitted only once
+    private String currentLevelId; // Store the ID of the level being played
+    private InputAdapter gameInputAdapter; // Input processor for this screen
 
-    public GameScreen(Main game, Player player) {
+    public GameScreen(Main game, Player player, String levelIdToPlay) {
         this.game = game;
         this.player = player;
+        this.currentLevelId = levelIdToPlay; // Store the passed level ID
         
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
@@ -86,17 +89,26 @@ public class GameScreen implements Screen {
         staticGunTextureRegion = new TextureRegion(gameAssets.getGunTexture("gub1"));
         
         // Initialize level system
-        levelManager = new LevelManager();
+        levelManager = LevelManager.getInstance(); // Use singleton instance
         activeTargets = new ArrayList<>();
-        levelManager.startLevel("aint_that_a_kick_in_the_head");
+        if (this.currentLevelId != null && !this.currentLevelId.isEmpty()) {
+            levelManager.startLevel(this.currentLevelId);
+        } else {
+            Gdx.app.error("GameScreen", "No level ID provided, cannot start level.");
+            // Fallback or error handling:
+            // For now, let's try a default if available, or just log and the game might not function correctly.
+            // A better approach would be to prevent GameScreen from being created without a valid level ID.
+            // Or, have a default level ID if one must be played.
+            // levelManager.startLevel("aint_that_a_kick_in_the_head"); // Example fallback
+        }
 
-        setupInputProcessor();
+        setupInputProcessor(); // Initialize the input adapter
 
         Gdx.app.log("GameScreen", "Started game for player: " + player.getUsername());
     }
 
     private void setupInputProcessor() {
-        Gdx.input.setInputProcessor(new InputAdapter() {
+        gameInputAdapter = new InputAdapter() { // Assign to the instance variable
             @Override
             public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 if (button == com.badlogic.gdx.Input.Buttons.LEFT) {
@@ -130,7 +142,7 @@ public class GameScreen implements Screen {
                 }
                 return false;
             }
-        });
+        };
     }
 
     private void submitScore() {
@@ -140,7 +152,7 @@ public class GameScreen implements Screen {
             .url("http://localhost:3000/api/scores/submit")
             .header("Content-Type", "application/json")
             .content("{\"player\":{\"id\":\"" + player.getId() + "\"}," +
-                     "\"level\":{\"id\":\"aint_that_a_kick_in_the_head\"}," + // Assuming "aint_that_a_kick_in_the_head" is the correct level ID string
+                     "\"level\":{\"id\":\"" + this.currentLevelId + "\"}," + // Use the actual level ID
                      "\"score\":" + currentScore + "," +
                      "\"playerLevel\":" + 0 + "}") // Sending playerLevel as 0, adjust if a different value is needed
             .build();
@@ -278,14 +290,19 @@ public class GameScreen implements Screen {
 
     @Override
     public void resize(int width, int height) {
+        // Method is currently empty, but correctly defined.
     }
 
     @Override
     public void show() {
+        Gdx.input.setCursorCatched(true); // Ensure cursor is catched when screen is shown
+        Gdx.input.setInputProcessor(gameInputAdapter); // Set the input processor for this screen
     }
 
     @Override
     public void hide() {
+        Gdx.input.setCursorCatched(false); // Release cursor when screen is hidden
+        Gdx.input.setInputProcessor(null); // Clear the input processor
     }
 
     @Override
@@ -298,7 +315,7 @@ public class GameScreen implements Screen {
 
     @Override
     public void dispose() {
-        Gdx.input.setCursorCatched(false);
+        // Gdx.input.setCursorCatched(false); // Moved to hide()
         batch.dispose();
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (gunshotSound != null) gunshotSound.dispose();

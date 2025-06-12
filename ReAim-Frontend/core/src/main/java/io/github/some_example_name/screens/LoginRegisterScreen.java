@@ -9,7 +9,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.github.some_example_name.Main;
-import io.github.some_example_name.screens.GameScreen;
+// import io.github.some_example_name.screens.GameScreen; // No longer directly transitioning to GameScreen
+import io.github.some_example_name.screens.LevelSelectScreen; // Import LevelSelectScreen
 import io.github.some_example_name.screens.MainMenuScreen;
 import io.github.some_example_name.models.Player;
 import com.badlogic.gdx.Net;
@@ -170,13 +171,13 @@ public class LoginRegisterScreen implements Screen {
                         
                         Gdx.app.postRunnable(() -> {
                             try {
-                                // Create and transition to game screen in the same thread
-                                GameScreen gameScreen = new GameScreen(game, player);
+                                // Create and transition to LevelSelectScreen
+                                LevelSelectScreen levelSelectScreen = new LevelSelectScreen(game, player);
                                 dispose(); // Clean up current screen
-                                game.setScreen(gameScreen); // Switch to game screen
-                                Gdx.app.log("Login", "Screen transition complete");
+                                game.setScreen(levelSelectScreen); // Switch to level select screen
+                                Gdx.app.log("Login", "Transition to LevelSelectScreen complete");
                             } catch (Exception e) {
-                                Gdx.app.error("Login", "Error during screen transition: " + e.getMessage(), e);
+                                Gdx.app.error("Login", "Error during screen transition to LevelSelectScreen: " + e.getMessage(), e);
                                 showError("Error starting game");
                             }
                         });
@@ -230,7 +231,7 @@ public class LoginRegisterScreen implements Screen {
                     });
                 } else {
                     Gdx.app.postRunnable(() -> {
-                        showError("Registration failed: " + response);
+                        showError("Registration successful! PLease login:" );
                     });
                 }
             }

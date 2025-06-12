@@ -1,0 +1,39 @@
+{
+    "levels": [
+        {
+            "id": "ain_t_that_a_kick_in_the_head",
+            "name": "Ain_t that a kick in the head",
+            "musicFileName": "Ain_t that a kick in the head.mp3",
+            "analysisFileName": "Ain_t that a kick in the head_analysis.json",
+            "difficulty": "medium"
+        },
+        {
+            "id": "blue_moon",
+            "name": "Blue Moon",
+            "musicFileName": "Blue Moon.mp3",
+            "analysisFileName": "Blue Moon_analysis.json",
+            "difficulty": "medium"
+        },
+        {
+            "id": "it_s_a_sin_to_tell_a_lie",
+            "name": "It_s a sin to tell a lie",
+            "musicFileName": "It_s a sin to tell a lie.mp3",
+            "analysisFileName": "It_s a sin to tell a lie_analysis.json",
+            "difficulty": "medium"
+        },
+        {
+            "id": "jingle,_jangle,_jingle",
+            "name": "Jingle, Jangle, Jingle",
+            "musicFileName": "Jingle, Jangle, Jingle.mp3",
+            "analysisFileName": "Jingle, Jangle, Jingle_analysis.json",
+            "difficulty": "medium"
+        },
+        {
+            "id": "heartaches_by_the_number",
+            "name": "Heartaches by the Number",
+            "musicFileName": "Heartaches by the Number.mp3",
+            "analysisFileName": "Heartaches by the Number_analysis.json",
+            "difficulty": "medium"
+        }
+    ]
+}

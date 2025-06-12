@@ -6,6 +6,8 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
+import com.badlogic.gdx.Net; // Added for HTTP requests
+import com.badlogic.gdx.net.HttpRequestBuilder; // Added for HTTP requests
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.math.MathUtils;
 import io.github.some_example_name.models.Target;
@@ -16,7 +18,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class LevelManager {
-    private static final String LEVELS_CONFIG_PATH = "levels/levels.json";
+    private static final String LEVELS_CONFIG_PATH = "MUSIC/levels/levels.json"; // Updated path
     private static final String MUSIC_ASSET_PATH = "MUSIC/";
     // private static final float TARGET_TRAVEL_TIME = 2.0f; // Replaced by min/max
     private static final float MIN_TARGET_TRAVEL_TIME = 1.0f; // Further adjusted for higher peaks
@@ -34,13 +36,23 @@ public class LevelManager {
     private int nextTargetIndex;
     // private float targetVelocityY; // Replaced by dynamic calculation
 
-    public LevelManager() {
+    private static LevelManager instance; // Singleton instance
+
+    private LevelManager() { // Private constructor for singleton
         levels = new HashMap<>();
         json = new Json();
         Gdx.app.debug("LevelManager", "Attempting to load levels from: " + LEVELS_CONFIG_PATH);
         loadLevels();
         // targetVelocityY = Gdx.graphics.getHeight() / TARGET_TRAVEL_TIME; // Velocity now calculated per target
-        Gdx.app.debug("LevelManager", "Loaded " + levels.size() + " levels");
+        Gdx.app.debug("LevelManager", "Loaded " + levels.size() + " levels locally.");
+        syncLevelsWithBackend(); // Attempt to sync levels with backend
+    }
+
+    public static synchronized LevelManager getInstance() { // Public static getter for singleton
+        if (instance == null) {
+            instance = new LevelManager();
+        }
+        return instance;
     }
 
     private void listFilesRecursively(FileHandle dir, String indent) {
@@ -230,6 +242,115 @@ public class LevelManager {
         return currentMusic != null && currentMusic.isPlaying();
     }
 
+    private void syncLevelsWithBackend() {
+        if (levels.isEmpty()) {
+            Gdx.app.log("LevelManagerSync", "No levels loaded locally to sync.");
+            return;
+        }
+
+        Gdx.app.log("LevelManagerSync", "Starting sync of " + levels.size() + " levels with backend...");
+
+        // We need to iterate over the LevelConfig objects that were parsed,
+        // not the LevelData map directly if we want the original config structure for the payload.
+        // For simplicity, let's re-parse the JSON here or store LevelConfig objects temporarily.
+        // A better way would be to store List<LevelConfig> from loadLevels() then iterate it.
+        // For now, let's iterate the LevelData map and reconstruct the necessary payload.
+
+        for (LevelData levelDataEntry : levels.values()) {
+            // Reconstruct a simplified object for backend submission based on LevelData
+            // Backend expects: id, name, jsonFile (analysisFileName), difficulty. Creator is optional.
+            String levelId = levelDataEntry.getId();
+            String levelName = levelDataEntry.getName();
+            // analysisFilePath is like "MUSIC/level_analysis.json". We need just "level_analysis.json" for jsonFile field.
+            String analysisFileName = null;
+            if (levelDataEntry.getAnalysisFilePath() != null) {
+                FileHandle handle = Gdx.files.internal(levelDataEntry.getAnalysisFilePath());
+                analysisFileName = handle.name();
+            }
+            String difficulty = levelDataEntry.getDifficulty();
+
+            if (analysisFileName == null) {
+                Gdx.app.error("LevelManagerSync", "Skipping sync for level " + levelName + " due to missing analysis file name.");
+                continue;
+            }
+            
+            // Create JSON payload string
+            // Using manual string concatenation for simplicity, but a Json object would be more robust.
+            // com.badlogic.gdx.utils.Json gdxJson = new com.badlogic.gdx.utils.Json();
+            // String payload = gdxJson.toJson(new BackendLevelPayload(levelId, levelName, analysisFileName, difficulty));
+            
+            // The backend /api/levels/create endpoint expects a 'creator' object with an 'id'.
+            // Without a valid creator.id, the request will likely fail with the current LevelController.
+            // If a "system" or default creator ID is available, it should be included here.
+            // For example: String systemCreatorId = "some-valid-player-id-for-system-levels";
+            // String payload = String.format("{\"id\":\"%s\", \"name\":\"%s\", \"jsonFile\":\"%s\", \"difficulty\":\"%s\", \"creator\":{\"id\":\"%s\"}}",
+            // levelId.replace("\"", "\\\""),
+            // levelName.replace("\"", "\\\""),
+            // analysisFileName.replace("\"", "\\\""),
+            // difficulty.replace("\"", "\\\""),
+            // systemCreatorId.replace("\"", "\\\""));
+            //
+            // For now, sending without creator, which will likely cause issues with the provided backend controller.
+            // The backend should ideally be modified to handle levels without explicit player creators (e.g., system levels).
+            String payload = String.format("{\"id\":\"%s\", \"name\":\"%s\", \"jsonFile\":\"%s\", \"difficulty\":\"%s\"}",
+                                           levelId.replace("\"", "\\\""), 
+                                           levelName.replace("\"", "\\\""),
+                                           analysisFileName.replace("\"", "\\\""),
+                                           difficulty.replace("\"", "\\\""));
+            Gdx.app.log("LevelManagerSync", "WARNING: Sending level sync payload without creator ID. This may fail with the current backend LevelController.");
+
+
+            HttpRequestBuilder requestBuilder = new HttpRequestBuilder();
+            Net.HttpRequest httpRequest = requestBuilder.newRequest()
+                    .method(Net.HttpMethods.POST)
+                    .url("http://localhost:3000/api/levels/create") // Ensure this matches your backend
+                    .header("Content-Type", "application/json")
+                    .content(payload)
+                    .build();
+
+            Gdx.app.log("LevelManagerSync", "Attempting to sync level: " + levelName + " with payload: " + payload);
+
+            Gdx.net.sendHttpRequest(httpRequest, new Net.HttpResponseListener() {
+                @Override
+                public void handleHttpResponse(Net.HttpResponse httpResponse) {
+                    int statusCode = httpResponse.getStatus().getStatusCode();
+                    if (statusCode >= 200 && statusCode < 300) {
+                        Gdx.app.log("LevelManagerSync", "Successfully synced level: " + levelName + ". Response: " + httpResponse.getResultAsString());
+                    } else {
+                        Gdx.app.error("LevelManagerSync", "Failed to sync level: " + levelName + ". Status: " + statusCode + ", Response: " + httpResponse.getResultAsString());
+                    }
+                }
+
+                @Override
+                public void failed(Throwable t) {
+                    Gdx.app.error("LevelManagerSync", "Error syncing level: " + levelName, t);
+                }
+
+                @Override
+                public void cancelled() {
+                    Gdx.app.log("LevelManagerSync", "Sync cancelled for level: " + levelName);
+                }
+            });
+        }
+    }
+    
+    // Helper class for JSON payload if using gdx.utils.Json for serialization
+    // private static class BackendLevelPayload {
+    //     public String id;
+    //     public String name;
+    //     public String jsonFile;
+    //     public String difficulty;
+    //     // public Object creator = null; // Explicitly null or omit
+
+    //     public BackendLevelPayload(String id, String name, String jsonFile, String difficulty) {
+    //         this.id = id;
+    //         this.name = name;
+    //         this.jsonFile = jsonFile;
+    //         this.difficulty = difficulty;
+    //     }
+    // }
+
+
     public static class LevelConfig {
         public String id;
         public String name;
@@ -252,6 +373,7 @@ public class LevelManager {
     public static class TapTarget {
         public float time;
         public Array<Float> window;
+        public float confidence; // Added to match analysis JSON files
     }
 
     public static class SubdivisionData {
