@@ -55,6 +55,7 @@ public class GameScreen implements Screen {
     private Sound gunpingSound;
     private int shotCounter = 0;
     private int currentScore = 0;
+    private boolean scoreSubmittedThisAttempt = false; // Flag to ensure score is submitted only once
 
     public GameScreen(Main game, Player player) {
         this.game = game;
@@ -121,7 +122,7 @@ public class GameScreen implements Screen {
                         if (!target.isDestroyed() && target.isHit(mouseX, mouseY)) {
                             target.destroy();
                             currentScore += 100; // Basic scoring
-                            submitScore();
+                            // submitScore(); // Moved to end of level
                             break;
                         }
                     }
@@ -138,9 +139,10 @@ public class GameScreen implements Screen {
             .method(Net.HttpMethods.POST)
             .url("http://localhost:3000/api/scores/submit")
             .header("Content-Type", "application/json")
-            .content("{\"playerId\":\"" + player.getId() + 
-                    "\",\"levelId\":\"aint_that_a_kick_in_the_head\"" +
-                    ",\"score\":" + currentScore + "}")
+            .content("{\"player\":{\"id\":\"" + player.getId() + "\"}," +
+                     "\"level\":{\"id\":\"aint_that_a_kick_in_the_head\"}," + // Assuming "aint_that_a_kick_in_the_head" is the correct level ID string
+                     "\"score\":" + currentScore + "," +
+                     "\"playerLevel\":" + 0 + "}") // Sending playerLevel as 0, adjust if a different value is needed
             .build();
 
         Gdx.net.sendHttpRequest(request, new Net.HttpResponseListener() {
@@ -191,7 +193,31 @@ public class GameScreen implements Screen {
         // Update targets
         List<Target> newTargets = levelManager.update(delta);
         activeTargets.addAll(newTargets);
-        activeTargets.removeIf(target -> target.update(delta));
+        activeTargets.removeIf(target -> target.update(delta)); // Targets remove themselves if destroyed or timed out
+
+        // Check for level completion and submit score
+        if (!scoreSubmittedThisAttempt && levelManager.isSpawningComplete()) {
+            // Spawning is done. Now check if music has finished OR if all active targets are also cleared.
+            // Using music finishing as the primary trigger after spawning is complete.
+            if (!levelManager.isMusicPlaying()) {
+                 // As an additional condition, you might want to wait for activeTargets.isEmpty()
+                 // if targets can exist after music stops. For now, music stop + spawn complete is the trigger.
+                if (activeTargets.isEmpty()) { // Let's wait for targets to clear too
+                    Gdx.app.log("GameScreen", "Level complete! Spawning finished, music stopped, and targets cleared. Final score: " + currentScore);
+                    submitScore();
+                    scoreSubmittedThisAttempt = true;
+                    // TODO: Add logic to transition to a results screen or main menu
+                    // Example: display a "Level Complete" message for a few seconds, then transition.
+                    // For now, just log. Consider adding a delay or a visual cue.
+                } else if (!levelManager.isMusicPlaying() && levelManager.isSpawningComplete() && !activeTargets.isEmpty()){
+                    // This case: Spawning done, music stopped, but targets still on screen.
+                    // This might happen if targets have a long lifetime after the music ends.
+                    // If you want to submit score as soon as music ends regardless of remaining targets:
+                    // submitScore(); scoreSubmittedThisAttempt = true; Gdx.app.log("GameScreen", "Level complete! Music ended. Submitting score.");
+                    // For now, we are waiting for targets to clear as per the condition above.
+                }
+            }
+        }
     }
 
     private void drawGame() {

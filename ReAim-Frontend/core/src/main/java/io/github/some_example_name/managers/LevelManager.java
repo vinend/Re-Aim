@@ -216,6 +216,20 @@ public class LevelManager {
         return levels;
     }
 
+    public boolean isSpawningComplete() {
+        if (currentLevelData == null || currentLevelData.getAnalysis() == null || 
+            currentLevelData.getAnalysis().tap_targets == null || currentLevelData.getAnalysis().tap_targets.isEmpty()) {
+            // If there are no targets defined or no level loaded, spawning is effectively complete.
+            // Or if music isn't playing (implying level hasn't started properly or ended)
+            return true; 
+        }
+        return nextTargetIndex >= currentLevelData.getAnalysis().tap_targets.size;
+    }
+
+    public boolean isMusicPlaying() {
+        return currentMusic != null && currentMusic.isPlaying();
+    }
+
     public static class LevelConfig {
         public String id;
         public String name;
